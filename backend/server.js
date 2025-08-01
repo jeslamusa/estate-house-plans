@@ -28,7 +28,7 @@ app.use(limiter);
 // CORS - Allow all origins in development
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] 
+    ? ['https://estate-house-plans-frontend.onrender.com', 'https://estate-house-plans.vercel.app'] 
     : true, // Allow all origins in development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

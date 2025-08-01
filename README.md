@@ -1,6 +1,17 @@
-# Estate House Plans - Full Stack Application
+# 🏠 Estate House Plans - Full Stack Application
 
 A modern web application for browsing and purchasing house plans, built with React frontend and Node.js backend.
+
+## 🌐 Live Demo
+
+- **Frontend**: [https://estate-house-plans-frontend.onrender.com](https://estate-house-plans-frontend.onrender.com)
+- **Admin Dashboard**: [https://estate-house-plans-frontend.onrender.com/admin](https://estate-house-plans-frontend.onrender.com/admin)
+- **Backend API**: [https://estate-house-plans-backend.onrender.com](https://estate-house-plans-backend.onrender.com)
+
+## 🔐 Admin Access
+
+- **Email**: `admin@estateplans.com`
+- **Password**: `admin123`
 
 ## 🏠 Features
 
@@ -34,7 +45,7 @@ A modern web application for browsing and purchasing house plans, built with Rea
 - **Multer** for file uploads
 - **Bcrypt** for password hashing
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Local Development)
 
 ### Prerequisites
 - Node.js (v16 or higher)
@@ -45,7 +56,7 @@ A modern web application for browsing and purchasing house plans, built with Rea
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/jeslamusa/estate-house-plans.git
    cd estate-house-plans
    ```
 
@@ -76,6 +87,71 @@ A modern web application for browsing and purchasing house plans, built with Rea
    - Backend API: http://localhost:5001
    - Admin Dashboard: http://localhost:3000/admin
 
+## 🚀 Free Deployment (Render)
+
+### Option 1: One-Click Deploy (Recommended)
+
+1. **Click the button below to deploy to Render:**
+   [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy/schema-new?schema=https://raw.githubusercontent.com/jeslamusa/estate-house-plans/main/render.yaml)
+
+2. **Or manually deploy:**
+   - Go to [Render.com](https://render.com)
+   - Sign up with your GitHub account
+   - Click "New +" → "Blueprint"
+   - Connect your repository: `jeslamusa/estate-house-plans`
+   - Render will automatically detect the `render.yaml` file
+   - Click "Apply" to deploy both frontend and backend
+
+### Option 2: Manual Deployment
+
+#### Backend Deployment
+1. Go to [Render.com](https://render.com)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Configure:
+   - **Name**: `estate-house-plans-backend`
+   - **Root Directory**: `backend`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+5. Add environment variables:
+   ```
+   NODE_ENV=production
+   PORT=10000
+   JWT_SECRET=your-secret-key
+   ```
+
+#### Frontend Deployment
+1. Click "New +" → "Static Site"
+2. Configure:
+   - **Name**: `estate-house-plans-frontend`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm install && npm run build`
+   - **Publish Directory**: `dist`
+3. Add environment variable:
+   ```
+   VITE_API_URL=https://your-backend-url.onrender.com/api
+   ```
+
+## 📱 Contact Information
+
+- **Phone**: 0765443843
+- **Email**: info@estateplans.com
+- **Social Media**:
+  - Facebook: jesla.mmassy
+  - Twitter: _j.e.s.l.a
+  - Instagram: _j.e.s.l.a
+  - WhatsApp: 0765443843
+
+## 🛒 Purchase System
+
+When users want to buy a house plan:
+
+1. **User fills purchase form** with contact details
+2. **Admin receives notification** with customer information
+3. **Admin can contact customer** using provided phone/email
+4. **Admin approves/rejects** the purchase request
+
 ## 📁 Project Structure
 
 ```
@@ -97,58 +173,33 @@ estate-house-plans/
 └── README.md
 ```
 
-## 🔐 Admin Access
+## 🔧 Environment Variables
 
-**Demo Credentials:**
-- Email: `admin@estateplans.com`
-- Password: `admin123`
-
-## 🛒 Purchase System
-
-When users want to buy a house plan:
-
-1. **User fills purchase form** with contact details
-2. **Admin receives notification** with customer information
-3. **Admin can contact customer** using provided phone/email
-4. **Admin approves/rejects** the purchase request
-
-## 📱 Contact Information
-
-- **Phone**: 0765443843
-- **Email**: info@estateplans.com
-- **Social Media**:
-  - Facebook: jesla.mmassy
-  - Twitter: _j.e.s.l.a
-  - Instagram: _j.e.s.l.a
-  - WhatsApp: 0765443843
-
-## 🚀 Deployment
-
-### Frontend (Vercel/Netlify)
-```bash
-cd frontend
-npm run build
-# Deploy the dist folder
+### Backend (.env)
+```env
+NODE_ENV=production
+PORT=10000
+JWT_SECRET=your-secret-key
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=estate_house_plans
+DB_PORT=3306
 ```
 
-### Backend (Railway/Heroku)
-```bash
-cd backend
-# Set environment variables
-npm start
+### Frontend (.env)
+```env
+VITE_API_URL=https://your-backend-url.onrender.com/api
 ```
 
-## 🤝 Contributing
+## 🆘 Support
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+For support, email info@estateplans.com or call 0765443843.
 
 ## 📄 License
 
 This project is licensed under the MIT License.
 
-## 🆘 Support
+---
 
-For support, email info@estateplans.com or call 0765443843. 
+**Built with ❤️ for the real estate community** 
