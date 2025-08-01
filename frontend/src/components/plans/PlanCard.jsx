@@ -15,14 +15,15 @@ const PlanCard = ({ plan }) => {
   }
 
   return (
-    <div className="card-hover group">
+    <div className="card-hover group h-full flex flex-col">
       {/* Image */}
       <div className="relative overflow-hidden rounded-lg mb-4">
         {plan.image_url ? (
           <img
             src={plan.image_url}
             alt={plan.name}
-            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
             onError={(e) => {
               console.error('Image failed to load:', e.target.src)
               // Try direct backend URL as fallback
@@ -39,12 +40,12 @@ const PlanCard = ({ plan }) => {
             }}
           />
         ) : null}
-        <div className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center ${plan.image_url ? 'hidden' : ''}`}>
+        <div className={`w-full h-40 sm:h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center ${plan.image_url ? 'hidden' : ''}`}>
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
-            <span className="text-gray-500 text-sm">No image available</span>
+            <span className="text-gray-500 text-xs sm:text-sm">No image available</span>
           </div>
         </div>
         
@@ -64,33 +65,33 @@ const PlanCard = ({ plan }) => {
       </div>
 
       {/* Content */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+      <div className="space-y-3 flex-1 flex flex-col">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
           <Link to={`/plan/${plan.id}`}>
             {plan.name}
           </Link>
         </h3>
         
-        <p className="text-gray-600 text-sm line-clamp-2">
+        <p className="text-gray-600 text-sm line-clamp-2 flex-1">
           {plan.description}
         </p>
 
         {/* Specs */}
-        <div className="grid grid-cols-2 gap-2 text-sm text-gray-500">
+        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-gray-500">
           <div className="flex items-center space-x-1">
-            <Square className="h-4 w-4" />
-            <span>{plan.area} sq ft</span>
+            <Square className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="truncate">{plan.area} sq ft</span>
           </div>
           <div className="flex items-center space-x-1">
-            <Bed className="h-4 w-4" />
+            <Bed className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>{plan.bedrooms} beds</span>
           </div>
           <div className="flex items-center space-x-1">
-            <Bath className="h-4 w-4" />
+            <Bath className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>{plan.bathrooms} baths</span>
           </div>
           <div className="flex items-center space-x-1">
-            <Layers className="h-4 w-4" />
+            <Layers className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>{plan.floors} floors</span>
           </div>
         </div>
@@ -98,10 +99,10 @@ const PlanCard = ({ plan }) => {
         {/* Download button */}
         <button
           onClick={handleDownload}
-          className="w-full btn-primary flex items-center justify-center space-x-2"
+          className="w-full btn-primary flex items-center justify-center space-x-2 mt-auto"
         >
           <Download className="h-4 w-4" />
-          <span>
+          <span className="text-sm sm:text-base">
             {plan.is_free ? 'Free Download' : 'Buy & Download'}
           </span>
         </button>
