@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     // ✅ Simple hardcoded login check for testing
-    if (email === 'admin@estateplans.com' && password === 'admin123') {
+    if (email === 'admin@houseplans.com' && password === 'admin123') {
       console.log('✅ Login successful!');
 
       const payload = { adminId: 1 };
