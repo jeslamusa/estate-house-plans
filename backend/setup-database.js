@@ -1,138 +1,188 @@
-const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+const bcrypt = require('bcryptjs');
+const { pool } = require('./config/database');
 
-async function setupDatabase() {
-  let connection;
-  
+const setupDatabase = async () => {
   try {
-    // First, connect without specifying database to create it
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      port: process.env.DB_PORT || 3306
-    });
-
-    console.log('✅ Connected to MySQL server');
-
-    // Create database if it doesn't exist
-    await connection.execute('CREATE DATABASE IF NOT EXISTS estate_house_plans');
-    console.log('✅ Database created/verified');
-
-    // Use the database
-    await connection.execute('USE estate_house_plans');
-
-    // Read and execute schema
+    console.log('🚀 Setting up database...');
+    
+    // Read schema file
     const schemaPath = path.join(__dirname, 'database', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
-    // Split by semicolon and execute each statement
-    const statements = schema.split(';').filter(stmt => stmt.trim());
+    // Split schema into individual statements
+    const statements = schema
+      .split(';')
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length > 0);
     
+    // Execute each statement
     for (const statement of statements) {
-      if (statement.trim()) {
-        await connection.execute(statement);
+      if (statement) {
+        await pool.execute(statement);
+        console.log('✅ Executed:', statement.substring(0, 50) + '...');
       }
     }
-
-    console.log('✅ Database schema created');
-
-    // Insert sample house plans
+    
+    // Create admin user
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const adminQuery = `
+      INSERT INTO users (name, email, password, role, created_at) 
+      VALUES (?, ?, ?, ?, NOW())
+      ON DUPLICATE KEY UPDATE 
+      password = VALUES(password), 
+      role = VALUES(role)
+    `;
+    
+    await pool.execute(adminQuery, [
+      'Admin User',
+      'admin@estateplans.com',
+      hashedPassword,
+      'admin'
+    ]);
+    
+    console.log('✅ Admin user created/updated');
+    console.log('📧 Email: admin@estateplans.com');
+    console.log('🔑 Password: admin123');
+    
+    // Create sample house plans
     const samplePlans = [
       {
-        name: 'Modern Family Home',
+        title: 'Modern Family Home',
         description: 'A beautiful 3-bedroom modern family home with open concept living space and large windows for natural light.',
-        length: 24.0,
-        width: 16.0,
-        area: 384.0,
+        price: 0.00,
         bedrooms: 3,
         bathrooms: 2,
-        floors: 1,
-        price: 0.00,
-        is_free: true,
-        image_url: '/uploads/images/modern-family-home.jpg',
+        square_feet: 1800,
+        image_url: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop',
         file_url: '/uploads/plans/modern-family-home.pdf'
       },
       {
-        name: 'Luxury Villa',
+        title: 'Luxury Villa',
         description: 'Spacious 4-bedroom luxury villa with premium finishes, swimming pool, and stunning architectural design.',
-        length: 32.0,
-        width: 20.0,
-        area: 640.0,
+        price: 49.99,
         bedrooms: 4,
         bathrooms: 3,
-        floors: 2,
-        price: 49.99,
-        is_free: false,
-        image_url: '/uploads/images/luxury-villa.jpg',
+        square_feet: 2800,
+        image_url: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=300&fit=crop',
         file_url: '/uploads/plans/luxury-villa.pdf'
       },
       {
-        name: 'Cozy Cottage',
+        title: 'Cozy Cottage',
         description: 'Charming 2-bedroom cottage perfect for small families or vacation homes with rustic appeal.',
-        length: 18.0,
-        width: 12.0,
-        area: 216.0,
+        price: 0.00,
         bedrooms: 2,
         bathrooms: 1,
-        floors: 1,
-        price: 0.00,
-        is_free: true,
-        image_url: '/uploads/images/cozy-cottage.jpg',
+        square_feet: 1200,
+        image_url: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop',
         file_url: '/uploads/plans/cozy-cottage.pdf'
       },
       {
-        name: 'Contemporary Townhouse',
+        title: 'Contemporary Townhouse',
         description: 'Modern 3-story townhouse with rooftop terrace, perfect for urban living with style.',
-        length: 20.0,
-        width: 14.0,
-        area: 280.0,
-        bedrooms: 3,
-        bathrooms: 2.5,
-        floors: 3,
         price: 29.99,
-        is_free: false,
-        image_url: '/uploads/images/contemporary-townhouse.jpg',
+        bedrooms: 3,
+        bathrooms: 2,
+        square_feet: 2000,
+        image_url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop',
         file_url: '/uploads/plans/contemporary-townhouse.pdf'
+      },
+      {
+        title: 'Minimalist Bungalow',
+        description: 'Clean and simple 2-bedroom bungalow with modern minimalist design and efficient use of space.',
+        price: 0.00,
+        bedrooms: 2,
+        bathrooms: 1,
+        square_feet: 1400,
+        image_url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop',
+        file_url: '/uploads/plans/minimalist-bungalow.pdf'
+      },
+      {
+        title: 'Executive Mansion',
+        description: 'Grand 5-bedroom executive mansion with luxury amenities, home theater, and wine cellar.',
+        price: 99.99,
+        bedrooms: 5,
+        bathrooms: 4,
+        square_feet: 4500,
+        image_url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=300&fit=crop',
+        file_url: '/uploads/plans/executive-mansion.pdf'
       }
     ];
-
+    
     for (const plan of samplePlans) {
-      await connection.execute(
-        `INSERT INTO house_plans 
-         (name, description, length, width, area, bedrooms, bathrooms, floors, price, is_free, image_url, file_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [plan.name, plan.description, plan.length, plan.width, plan.area, plan.bedrooms, plan.bathrooms, plan.floors, plan.price, plan.is_free, plan.image_url, plan.file_url]
-      );
+      const planQuery = `
+        INSERT INTO house_plans (title, description, price, bedrooms, bathrooms, square_feet, image_url, file_url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE 
+        title = VALUES(title),
+        description = VALUES(description),
+        price = VALUES(price),
+        bedrooms = VALUES(bedrooms),
+        bathrooms = VALUES(bathrooms),
+        square_feet = VALUES(square_feet),
+        image_url = VALUES(image_url),
+        file_url = VALUES(file_url)
+      `;
+      
+      await pool.execute(planQuery, [
+        plan.title,
+        plan.description,
+        plan.price,
+        plan.bedrooms,
+        plan.bathrooms,
+        plan.square_feet,
+        plan.image_url,
+        plan.file_url
+      ]);
     }
-
-    console.log('✅ Sample house plans inserted');
-
+    
+    console.log('✅ Sample house plans created');
+    
     // Create uploads directories if they don't exist
     const uploadsDir = path.join(__dirname, 'uploads');
-    const imagesDir = path.join(uploadsDir, 'images');
     const plansDir = path.join(uploadsDir, 'plans');
-
-    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
-    if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir);
-    if (!fs.existsSync(plansDir)) fs.mkdirSync(plansDir);
-
-    console.log('✅ Upload directories created');
-
-    await connection.end();
-    console.log('✅ Database setup completed successfully!');
-    console.log('📧 Admin email: admin@estateplans.com');
-    console.log('🔑 Admin password: admin123');
-
+    
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir);
+      console.log('✅ Created uploads directory');
+    }
+    if (!fs.existsSync(plansDir)) {
+      fs.mkdirSync(plansDir);
+      console.log('✅ Created plans directory');
+    }
+    
+    console.log('🎉 Database setup completed successfully!');
+    console.log('');
+    console.log('📊 Database Summary:');
+    console.log('   - Admin user created');
+    console.log('   - 6 sample house plans added');
+    console.log('   - Upload directories created');
+    console.log('');
+    console.log('🔗 Access your application:');
+    console.log('   - Frontend: http://localhost:3000');
+    console.log('   - Backend API: http://localhost:5001');
+    console.log('   - Admin Panel: http://localhost:3000/admin');
+    
   } catch (error) {
     console.error('❌ Database setup failed:', error.message);
-    if (connection) {
-      await connection.end();
-    }
-    process.exit(1);
+    throw error;
+  } finally {
+    await pool.end();
   }
+};
+
+// Run setup if this file is executed directly
+if (require.main === module) {
+  setupDatabase()
+    .then(() => {
+      console.log('✅ Setup completed');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('❌ Setup failed:', error);
+      process.exit(1);
+    });
 }
 
-setupDatabase(); 
+module.exports = setupDatabase; 

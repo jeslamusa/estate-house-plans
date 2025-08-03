@@ -94,15 +94,27 @@ const PORT = process.env.PORT || 5001; // Use environment variable or default to
 // Start server
 const startServer = async () => {
   try {
-    // Test database connection (commented out for now)
-    // await testConnection();
-    console.log('⚠️  Database connection skipped - running in demo mode');
+    // Test database connection in production
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        await testConnection();
+        console.log('✅ Database connected successfully');
+      } catch (dbError) {
+        console.error('❌ Database connection failed:', dbError.message);
+        console.log('⚠️  Starting server without database - some features will be limited');
+        // Don't exit in production, allow server to start without DB
+      }
+    } else {
+      console.log('⚠️  Database connection skipped - running in development mode');
+    }
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`⚠️  Note: Database features will not work without MySQL`);
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`🌐 Production URL: https://estate-house-plans-backend.onrender.com`);
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);
