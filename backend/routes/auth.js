@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
           token,
           admin: {
             id: 1,
-            email: 'admin@estateplans.com'
+            email: 'admin@houseplans.com'
           }
         });
       });
@@ -57,7 +57,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     const mockAdmin = {
       id: 1,
-      email: 'admin@estateplans.com'
+      email: 'admin@houseplans.com'
     };
 
     res.json({
