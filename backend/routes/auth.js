@@ -1,56 +1,49 @@
 const express = require('express');
-const bcrypt = require('bcryptjs'); // Changed from bcrypt
-const jwt = require('jsonwebtoken');
-const { pool } = require('../config/database');
-const { body, validationResult } = require('express-validator');
+     const bcrypt = require('bcryptjs');
+     const jwt = require('jsonwebtoken');
+     const { pool } = require('../config/database');
 
-const router = express.Router();
+     const router = express.Router();
 
-router.post(
-  '/login',
-  [
-    body('email').isEmail().withMessage('Invalid email format'),
-    body('password').notEmpty().withMessage('Password is required')
-  ],
-  async (req, res) => {
-    try {
-      // Log request body for debugging
-      console.log('Login request body:', req.body);
+     router.post('/login', async (req, res) => {
+       try {
+         console.log('Login request body:', req.body);
+         const { email, password } = req.body;
 
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+         if (!email || !password) {
+           return res.status(400).json({
+             errors: [
+               !email && { type: 'field', msg: 'Email is required', path: 'email', location: 'body' },
+               !password && { type: 'field', msg: 'Password is required', path: 'password', location: 'body' }
+             ].filter(Boolean)
+           });
+         }
 
-      const { email, password } = req.body;
+         const { rows } = await pool.query('SELECT * FROM admins WHERE email = $1', [email]);
+         const admin = rows[0];
 
-      const { rows } = await pool.query('SELECT * FROM admins WHERE email = $1', [email]);
-      const admin = rows[0];
+         if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
+           return res.status(401).json({ message: 'Invalid credentials' });
+         }
 
-      if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
+         const token = jwt.sign(
+           { adminId: admin.id, email: admin.email },
+           process.env.JWT_SECRET,
+           { expiresIn: '1h' }
+         );
 
-      const token = jwt.sign(
-        { adminId: admin.id, email: admin.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+         res.json({
+           token,
+           admin: {
+             id: admin.id,
+             email: admin.email,
+             name: admin.name
+           }
+         });
+       } catch (error) {
+         console.error('Login error:', error);
+         res.status(500).json({ message: 'Server error' });
+       }
+     });
 
-      res.json({
-        token,
-        admin: {
-          id: admin.id,
-          email: admin.email,
-          name: admin.name
-        }
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-);
-
-module.exports = router;
+     module.exports = router;
