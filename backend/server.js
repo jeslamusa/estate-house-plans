@@ -25,11 +25,14 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS - Allow all origins in development
+// CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://estate-house-plans-frontend.onrender.com', 'https://estate-house-plans.vercel.app'] 
-    : true, // Allow all origins in development
+    ? [
+        'https://estate-house-plans-exp7.onrender.com', // Updated frontend URL
+        'https://estate-house-plans.vercel.app'
+      ] 
+    : true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -63,6 +66,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test database connection endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT NOW()');
+    res.json({ message: 'Database connected', time: rows[0].now });
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ message: 'Database connection failed', error: error.message });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -89,12 +103,11 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 5001; // Use environment variable or default to 5001
+const PORT = process.env.PORT || 5001;
 
 // Start server
 const startServer = async () => {
   try {
-    // Test database connection in production
     if (process.env.NODE_ENV === 'production') {
       try {
         await testConnection();
@@ -102,7 +115,6 @@ const startServer = async () => {
       } catch (dbError) {
         console.error('❌ Database connection failed:', dbError.message);
         console.log('⚠️  Starting server without database - some features will be limited');
-        // Don't exit in production, allow server to start without DB
       }
     } else {
       console.log('⚠️  Database connection skipped - running in development mode');
@@ -113,7 +125,7 @@ const startServer = async () => {
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
       if (process.env.NODE_ENV === 'production') {
-        console.log(`🌐 Production URL: https://estate-house-plans-backend.onrender.com`);
+        console.log(`🌐 Production URL: https://estate-house-x63y.onrender.com`);
       }
     });
   } catch (error) {
@@ -122,4 +134,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
+startServer();
