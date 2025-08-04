@@ -6,7 +6,7 @@ const { body, validationResult } = require('express-validator');
 const { pool } = require('../config/database');
 const auth = require('../middleware/auth');
 
-const router = express.Router();
+const router = express.Router(); // ✅ THIS was missing before
 
 // @route   POST /api/auth/login
 // @desc    Admin login
@@ -17,27 +17,26 @@ router.post('/login', async (req, res) => {
     console.log('Request body:', req.body);
     
     const { email, password } = req.body;
-    
-    // Simple hardcoded check - no validation, no bcrypt
-    if (email === 'admin@estateplans.com' && password === 'admin123') {
+
+    // ✅ Simple hardcoded login check for testing
+    if (email === 'admin@houseplans.com' && password === 'admin123') {
       console.log('✅ Login successful!');
-      
-      // Create simple JWT token
+
       const payload = { adminId: 1 };
-      const jwtSecret = 'simple-secret-2024';
-      
+      const jwtSecret = 'simple-secret-2024'; // Or use process.env.JWT_SECRET
+
       jwt.sign(payload, jwtSecret, { expiresIn: '24h' }, (err, token) => {
         if (err) {
           console.error('JWT error:', err);
           return res.status(500).json({ message: 'Token error' });
         }
-        
+
         console.log('✅ Token created successfully');
         res.json({
           token,
           admin: {
             id: 1,
-            email: 'admin@estateplans.com'
+            email: 'admin@houseplans.com'
           }
         });
       });
@@ -56,12 +55,11 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
-    // Mock admin data for demo mode
     const mockAdmin = {
       id: 1,
-      email: 'admin@estateplans.com'
+      email: 'admin@houseplans.com'
     };
-    
+
     res.json({
       admin: {
         id: mockAdmin.id,
@@ -74,4 +72,5 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;
+

@@ -119,4 +119,4 @@ module.exports = {
   testConnection,
   executeQuery,
   isPostgreSQL
-}; 
+};
