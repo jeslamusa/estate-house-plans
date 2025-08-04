@@ -123,18 +123,54 @@ class AutoDeployer {
   }
 
   async setupDatabase() {
-    log.step('Step 3: Database Setup (PlanetScale)');
+    log.step('Step 3: Database Setup (Free Options)');
 
-    console.log(`\n${colors.yellow}📊 Database Setup Required:${colors.reset}`);
-    console.log('1. Go to https://planetscale.com/');
-    console.log('2. Sign up for a free account');
-    console.log('3. Create a new database named: estate-house-plans');
-    console.log('4. Get your connection string from the Connect tab');
+    console.log(`\n${colors.yellow}📊 Database Setup - Choose Your Free Option:${colors.reset}`);
+    console.log('');
+    console.log('Option 1: Railway (Recommended)');
+    console.log('1. Go to https://railway.app/');
+    console.log('2. Sign up with GitHub (free)');
+    console.log('3. Create new project');
+    console.log('4. Add MySQL database');
+    console.log('5. Get connection string');
+    console.log('');
+    console.log('Option 2: Supabase (PostgreSQL)');
+    console.log('1. Go to https://supabase.com/');
+    console.log('2. Sign up for free account');
+    console.log('3. Create new project');
+    console.log('4. Get connection string');
+    console.log('');
+    console.log('Option 3: Neon (PostgreSQL)');
+    console.log('1. Go to https://neon.tech/');
+    console.log('2. Sign up for free account');
+    console.log('3. Create new database');
+    console.log('4. Get connection string');
+    console.log('');
 
-    this.databaseUrl = await question('\nEnter your PlanetScale connection string: ');
+    const databaseChoice = await question('Which database service would you like to use? (1/2/3): ');
+    
+    let databaseInstructions = '';
+    switch(databaseChoice) {
+      case '1':
+        databaseInstructions = 'Railway MySQL';
+        break;
+      case '2':
+        databaseInstructions = 'Supabase PostgreSQL';
+        break;
+      case '3':
+        databaseInstructions = 'Neon PostgreSQL';
+        break;
+      default:
+        databaseInstructions = 'Railway MySQL';
+    }
 
-    if (!this.databaseUrl.includes('mysql://')) {
-      throw new Error('Invalid database connection string. Should start with mysql://');
+    console.log(`\n${colors.cyan}Setting up ${databaseInstructions}...${colors.reset}`);
+    console.log('Please get your connection string from your chosen service.');
+
+    this.databaseUrl = await question('\nEnter your database connection string: ');
+
+    if (!this.databaseUrl.includes('://')) {
+      throw new Error('Invalid database connection string. Should include protocol (mysql:// or postgresql://)');
     }
 
     log.success('Database connection string saved');

@@ -1,7 +1,7 @@
 # 🚀 Deployment Steps for jeslamusa/estate-house-plans
 
 ## ✅ **Step 1: Code is Ready!**
-Your code has been successfully pushed to: `https://github.com/jeslamusa/estate-house-plans`
+Your code has been successfully pushed to: `https://github.com/jeslamusa/image.pngimage.pngestate-house-plans`
 
 ---
 
