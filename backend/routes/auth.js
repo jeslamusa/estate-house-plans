@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // Changed from bcrypt
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const { body, validationResult } = require('express-validator');
@@ -9,17 +9,20 @@ const router = express.Router();
 router.post(
   '/login',
   [
-    body('email').isEmail().withMessage('Invalid email'),
+    body('email').isEmail().withMessage('Invalid email format'),
     body('password').notEmpty().withMessage('Password is required')
   ],
   async (req, res) => {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     try {
+      // Log request body for debugging
+      console.log('Login request body:', req.body);
+
+      // Check validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
       const { email, password } = req.body;
 
       const { rows } = await pool.query('SELECT * FROM admins WHERE email = $1', [email]);
