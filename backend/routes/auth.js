@@ -6,65 +6,71 @@ const { body, validationResult } = require('express-validator');
 const { pool } = require('../config/database');
 const auth = require('../middleware/auth');
 
-const router = express.Router(); // ✅ THIS was missing before
+const router = express.Router();
 
 // @route   POST /api/auth/login
 // @desc    Admin login
 // @access  Public
-router.post('/login', async (req, res) => {
-  try {
-    console.log('=== LOGIN ATTEMPT ===');
-    console.log('Request body:', req.body);
-    
-    const { email, password } = req.body;
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Invalid email'),
+    body('password').notEmpty().withMessage('Password is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        console.log('Validation errors:', errors.array());
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-    // ✅ Simple hardcoded login check for testing
-    if (email === 'admin@houseplans.com' && password === 'admin123') {
-      console.log('✅ Login successful!');
+      const { email, password } = req.body;
+      console.log('=== LOGIN ATTEMPT ===', { email });
 
-      const payload = { adminId: 1 };
-      const jwtSecret = 'simple-secret-2024'; // Or use process.env.JWT_SECRET
+      const { rows } = await pool.query('SELECT * FROM admins WHERE email = $1', [email]);
+      const admin = rows[0];
+      if (!admin) {
+        console.log('❌ Admin not found');
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
 
-      jwt.sign(payload, jwtSecret, { expiresIn: '24h' }, (err, token) => {
-        if (err) {
-          console.error('JWT error:', err);
-          return res.status(500).json({ message: 'Token error' });
-        }
+      const isMatch = await bcrypt.compare(password, admin.password_hash);
+      if (!isMatch) {
+        console.log('❌ Password mismatch');
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
 
-        console.log('✅ Token created successfully');
-        res.json({
-          token,
-          admin: {
-            id: 1,
-            email: 'admin@houseplans.com'
-          }
-        });
+      const payload = { adminId: admin.id, email: admin.email };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+      console.log('✅ Login successful, token generated');
+      res.json({
+        token,
+        admin: { id: admin.id, email: admin.email, name: admin.name }
       });
-    } else {
-      console.log('❌ Login failed - invalid credentials');
-      res.status(400).json({ message: 'Invalid credentials' });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Server error' });
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
   }
-});
+);
 
 // @route   GET /api/auth/me
 // @desc    Get current admin
 // @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
-    const mockAdmin = {
-      id: 1,
-      email: 'admin@houseplans.com'
-    };
+    const { adminId } = req.user;
+    const { rows } = await pool.query('SELECT id, email, name FROM admins WHERE id = $1', [adminId]);
+    const admin = rows[0];
+    if (!admin) {
+      console.log('❌ Admin not found for /me');
+      return res.status(404).json({ message: 'Admin not found' });
+    }
 
     res.json({
-      admin: {
-        id: mockAdmin.id,
-        email: mockAdmin.email
-      }
+      admin: { id: admin.id, email: admin.email, name: admin.name }
     });
   } catch (error) {
     console.error('Get admin error:', error);
@@ -73,4 +79,3 @@ router.get('/me', auth, async (req, res) => {
 });
 
 module.exports = router;
-
