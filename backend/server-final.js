@@ -1,79 +1,88 @@
-require('dotenv').config();
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
-const { pool } = require('../config/database');
-const auth = require('../middleware/auth');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+require('dotenv').config();
 
-const router = express.Router();
+const { pool, testConnection } = require('./config/database');
 
-router.post(
-  '/login',
-  [
-    body('email').isEmail().withMessage('Invalid email address'),
-    body('password').notEmpty().withMessage('Password is required')
+// Import routes
+const authRoutes = require('./routes/auth');
+const plansRoutes = require('./routes/plans');
+const statsRoutes = require('./routes/stats');
+const profileRoutes = require('./routes/profile');
+
+const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
+app.use(limiter);
+
+// CORS for production and dev
+app.use(cors({
+  origin: [
+    'https://estate-house-plans.vercel.app',
+    'https://estate-house-plans-exp7.onrender.com'
   ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ success: false, message: errors.array()[0].msg });
-      }
+  credentials: true
+}));
 
-      const { email, password } = req.body;
-      const { rows } = await pool.query('SELECT id, email, password, role FROM users WHERE email = $1', [email]);
+// JSON & URL encoded parser
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-      if (rows.length === 0) {
-        return res.status(401).json({ success: false, message: 'Invalid email or password' });
-      }
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-      const user = rows[0];
-      const isMatch = await bcrypt.compare(password, user.password);
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/plans', plansRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/profile', profileRoutes);
 
-      if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid email or password' });
-      }
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', environment: process.env.NODE_ENV || 'development' });
+});
 
-      if (user.role !== 'admin') {
-        return res.status(403).json({ success: false, message: 'Admins only' });
-      }
-
-      const token = jwt.sign({ adminId: user.id }, process.env.JWT_SECRET || 'default-secret-2024', { expiresIn: '24h' });
-
-      res.json({
-        success: true,
-        token,
-        admin: {
-          id: user.id,
-          email: user.email
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ success: false, message: 'Server error' });
-    }
-  }
-);
-
-router.get('/me', auth, async (req, res) => {
+// Optional test DB connection
+app.get('/api/test-db', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [req.admin.adminId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
-    }
-
-    const admin = rows[0];
-    res.json({
-      success: true,
-      admin: {
-        id: admin.id,
-        email: admin.email
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    const { rows } = await pool.query('SELECT NOW()');
+    res.json({ message: 'Database connected', time: rows[0].now });
+  } catch (err) {
+    res.status(500).json({ message: 'Database error', error: err.message });
   }
 });
 
-module.exports = router;
+// 404 fallback route
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
 
+// Start server
+const PORT = process.env.PORT || 5001;
+
+const startServer = async () => {
+  try {
+    await testConnection();
+    console.log('✅ Database connected');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Backend: https://estate-house-x63y.onrender.com`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
