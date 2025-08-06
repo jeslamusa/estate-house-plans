@@ -1,42 +1,118 @@
+require('dotenv').config();
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
 const { pool } = require('../config/database');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Login route
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+// @route   POST /api/auth/login
+// @desc    Admin login
+// @access  Public
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Invalid email address'),
+    body('password').notEmpty().withMessage('Password is required')
+  ],
+  async (req, res) => {
+    try {
+      console.log('=== LOGIN ATTEMPT ===');
+      console.log('Request body:', req.body);
 
+      // Validate input
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', errors.array());
+        return res.status(400).json({ success: false, message: errors.array()[0].msg });
+      }
+
+      const { email, password } = req.body;
+
+      // Query user from database
+      const { rows } = await pool.query('SELECT id, email, password, role FROM users WHERE email = $1', [email]);
+      if (rows.length === 0) {
+        console.log('❌ Login failed - user not found:', email);
+        return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      }
+
+      const user = rows[0];
+
+      // Verify password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        console.log('❌ Login failed - invalid password for:', email);
+        return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      }
+
+      // Check role (optional, if you want to restrict to admins)
+      if (user.role !== 'admin') {
+        console.log('❌ Login failed - not an admin:', email);
+        return res.status(403).json({ success: false, message: 'Access denied: Admins only' });
+      }
+
+      // Create JWT token
+      const payload = { adminId: user.id };
+      const jwtSecret = process.env.JWT_SECRET || 'default-secret-2024'; // Fallback for local dev
+      if (!process.env.JWT_SECRET) {
+        console.warn('⚠️ JWT_SECRET not set, using default');
+      }
+
+      const token = await new Promise((resolve, reject) => {
+        jwt.sign(payload, jwtSecret, { expiresIn: '24h' }, (err, token) => {
+          if (err) reject(err);
+          resolve(token);
+        });
+      });
+
+      console.log('✅ Login successful for:', email);
+      res.json({
+        success: true,
+        token,
+        admin: {
+          id: user.id,
+          email: user.email
+        }
+      });
+    } catch (error) {
+      console.error('❌ Login error:', {
+        message: error.message,
+        stack: error.stack
+      });
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  }
+);
+
+// @route   GET /api/auth/me
+// @desc    Get current admin
+// @access  Private
+router.get('/me', auth, async (req, res) => {
   try {
-    // Validate input
-    if (!email || !password) {
-      console.log(`POST /api/auth/login: Missing email or password`);
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    // Fetch admin from database using adminId from JWT (set by auth middleware)
+    const { rows } = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [req.admin.adminId]);
+    if (rows.length === 0) {
+      console.log('❌ Admin not found for ID:', req.admin.adminId);
+      return res.status(404).json({ success: false, message: 'Admin not found' });
     }
 
-    // Query the database for the user
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = result.rows[0];
-
-    if (!user) {
-      console.log(`POST /api/auth/login: User not found for ${email}`);
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      console.log(`POST /api/auth/login: Invalid password for ${email}`);
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    }
-
-    // Successful login (in a real app, generate a JWT or session token here)
-    console.log(`POST /api/auth/login: Successful login for ${email}`);
-    return res.json({ success: true });
+    const admin = rows[0];
+    console.log('✅ Fetched admin data for:', admin.email);
+    res.json({
+      success: true,
+      admin: {
+        id: admin.id,
+        email: admin.email
+      }
+    });
   } catch (error) {
-    console.error('POST /api/auth/login: Error:', error.message);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Get admin error:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
