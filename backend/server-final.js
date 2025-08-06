@@ -23,11 +23,11 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS - Allow all origins in development
+// CORS - Allow all origins for testing; update for production
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] 
-    : true, // Allow all origins in development
+    ? ['https://your-frontend-domain.com'] // Replace with actual frontend URL in production
+    : true, // Allow all origins in development/testing
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -51,6 +51,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/profile', profileRoutes);
+
+// Test database connection endpoint
+app.get('/api/test-db', async (req, res, next) => {
+  try {
+    await testConnection();
+    console.log('GET /api/test-db: Database connection successful');
+    res.json({ message: 'Database connected', time: new Date().toISOString() });
+  } catch (error) {
+    console.error('GET /api/test-db: Database connection failed:', error);
+    next(error);
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -84,10 +96,11 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
+  console.log(`404: Route not found for ${req.originalUrl}`);
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = 5001; // Fixed port to avoid conflicts
+const PORT = process.env.PORT || 5001; // Use Render's dynamic port
 
 // Start server
 const startServer = async () => {
@@ -99,6 +112,7 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🔗 Test DB: http://localhost:${PORT}/api/test-db`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -106,4 +120,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
+startServer();
