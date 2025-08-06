@@ -1,3 +1,4 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -6,46 +7,50 @@ const { pool } = require('./config/database');
 const setupDatabase = async () => {
   try {
     console.log('🚀 Setting up database...');
-    
+
     // Read schema file
-    const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+    const schemaPath = path.join(__dirname, 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
-    
+
     // Split schema into individual statements
     const statements = schema
       .split(';')
       .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0);
-    
+      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+
     // Execute each statement
     for (const statement of statements) {
       if (statement) {
-        await pool.execute(statement);
+        await pool.query(statement);
         console.log('✅ Executed:', statement.substring(0, 50) + '...');
       }
     }
-    
+
     // Create admin user
     const hashedPassword = await bcrypt.hash('admin123', 10);
     const adminQuery = `
-      INSERT INTO users (name, email, password, role, created_at) 
-      VALUES (?, ?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE 
-      password = VALUES(password), 
-      role = VALUES(role)
+      INSERT INTO users (name, email, password, role, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (email)
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        password = EXCLUDED.password,
+        role = EXCLUDED.role
+      RETURNING id, email, role
     `;
-    
-    await pool.execute(adminQuery, [
+
+    const adminResult = await pool.query(adminQuery, [
       'Admin User',
       'admin@estateplans.com',
       hashedPassword,
       'admin'
     ]);
-    
+
     console.log('✅ Admin user created/updated');
     console.log('📧 Email: admin@estateplans.com');
     console.log('🔑 Password: admin123');
-    
+    console.log('🆔 ID:', adminResult.rows[0].id);
+
     // Create sample house plans
     const samplePlans = [
       {
@@ -109,23 +114,24 @@ const setupDatabase = async () => {
         file_url: '/uploads/plans/executive-mansion.pdf'
       }
     ];
-    
+
     for (const plan of samplePlans) {
       const planQuery = `
         INSERT INTO house_plans (title, description, price, bedrooms, bathrooms, square_feet, image_url, file_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE 
-        title = VALUES(title),
-        description = VALUES(description),
-        price = VALUES(price),
-        bedrooms = VALUES(bedrooms),
-        bathrooms = VALUES(bathrooms),
-        square_feet = VALUES(square_feet),
-        image_url = VALUES(image_url),
-        file_url = VALUES(file_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        ON CONFLICT (title)
+        DO UPDATE SET
+          description = EXCLUDED.description,
+          price = EXCLUDED.price,
+          bedrooms = EXCLUDED.bedrooms,
+          bathrooms = EXCLUDED.bathrooms,
+          square_feet = EXCLUDED.square_feet,
+          image_url = EXCLUDED.image_url,
+          file_url = EXCLUDED.file_url
+        RETURNING id
       `;
-      
-      await pool.execute(planQuery, [
+
+      await pool.query(planQuery, [
         plan.title,
         plan.description,
         plan.price,
@@ -136,13 +142,13 @@ const setupDatabase = async () => {
         plan.file_url
       ]);
     }
-    
+
     console.log('✅ Sample house plans created');
-    
+
     // Create uploads directories if they don't exist
-    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsDir = path.join(__dirname, 'Uploads');
     const plansDir = path.join(uploadsDir, 'plans');
-    
+
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir);
       console.log('✅ Created uploads directory');
@@ -151,7 +157,7 @@ const setupDatabase = async () => {
       fs.mkdirSync(plansDir);
       console.log('✅ Created plans directory');
     }
-    
+
     console.log('🎉 Database setup completed successfully!');
     console.log('');
     console.log('📊 Database Summary:');
@@ -163,9 +169,12 @@ const setupDatabase = async () => {
     console.log('   - Frontend: http://localhost:3000');
     console.log('   - Backend API: http://localhost:5001');
     console.log('   - Admin Panel: http://localhost:3000/admin');
-    
+
   } catch (error) {
-    console.error('❌ Database setup failed:', error.message);
+    console.error('❌ Database setup failed:', {
+      message: error.message,
+      stack: error.stack
+    });
     throw error;
   } finally {
     await pool.end();
@@ -185,4 +194,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = setupDatabase; 
+module.exports = setupDatabase;
