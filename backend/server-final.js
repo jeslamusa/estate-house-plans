@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+require('dotenv').config();
+
 const { testConnection } = require('./config/database');
 
 // Import routes
@@ -23,11 +25,14 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS - Allow all origins for testing; update for production
+// CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] // Replace with actual frontend URL in production
-    : true, // Allow all origins in development/testing
+    ? [
+        'https://estate-house-plans-exp7.onrender.com', // Updated frontend URL
+        'https://estate-house-plans.vercel.app'
+      ] 
+    : true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -52,18 +57,6 @@ app.use('/api/plans', plansRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/profile', profileRoutes);
 
-// Test database connection endpoint
-app.get('/api/test-db', async (req, res, next) => {
-  try {
-    await testConnection();
-    console.log('GET /api/test-db: Database connection successful');
-    res.json({ message: 'Database connected', time: new Date().toISOString() });
-  } catch (error) {
-    console.error('GET /api/test-db: Database connection failed:', error);
-    next(error);
-  }
-});
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -71,6 +64,17 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Test database connection endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT NOW()');
+    res.json({ message: 'Database connected', time: rows[0].now });
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ message: 'Database connection failed', error: error.message });
+  }
 });
 
 // Error handling middleware
@@ -96,23 +100,33 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  console.log(`404: Route not found for ${req.originalUrl}`);
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 5001; // Use Render's dynamic port
+const PORT = process.env.PORT || 5001;
 
 // Start server
 const startServer = async () => {
   try {
-    // Test database connection
-    await testConnection();
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        await testConnection();
+        console.log('✅ Database connected successfully');
+      } catch (dbError) {
+        console.error('❌ Database connection failed:', dbError.message);
+        console.log('⚠️  Starting server without database - some features will be limited');
+      }
+    } else {
+      console.log('⚠️  Database connection skipped - running in development mode');
+    }
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🔗 Test DB: http://localhost:${PORT}/api/test-db`);
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`🌐 Production URL: https://estate-house-x63y.onrender.com`);
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);
