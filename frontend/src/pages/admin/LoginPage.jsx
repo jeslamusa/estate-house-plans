@@ -20,15 +20,21 @@ const LoginPage = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      console.log('Attempting login with:', data.email);
       const result = await login(data.email, data.password);
+      console.log('Login response:', result);
       if (result.success) {
         toast.success('Login successful!');
         navigate('/admin/dashboard');
       } else {
         toast.error(result.message || 'Login failed');
       }
-    } catch {
-      toast.error('An error occurred during login');
+    } catch (error) {
+      console.error('Login error:', {
+        message: error.message,
+        stack: error.stack
+      });
+      toast.error(error.message === 'Network error' ? 'Server is unreachable' : 'An error occurred during login');
     } finally {
       setLoading(false);
     }
