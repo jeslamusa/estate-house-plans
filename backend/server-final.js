@@ -1,137 +1,79 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
 require('dotenv').config();
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
+const { pool } = require('../config/database');
+const auth = require('../middleware/auth');
 
-const { testConnection } = require('./config/database');
+const router = express.Router();
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const plansRoutes = require('./routes/plans');
-const statsRoutes = require('./routes/stats');
-const profileRoutes = require('./routes/profile');
-
-const app = express();
-
-// Security middleware
-app.use(helmet());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://estate-house-plans-exp7.onrender.com', // Updated frontend URL
-        'https://estate-house-plans.vercel.app'
-      ] 
-    : true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, path) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-  }
-}));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/plans', plansRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/profile', profileRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Test database connection endpoint
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT NOW()');
-    res.json({ message: 'Database connected', time: rows[0].now });
-  } catch (error) {
-    console.error('Database test error:', error);
-    res.status(500).json({ message: 'Database connection failed', error: error.message });
-  }
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-
-  if (err.name === 'MulterError') {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File too large' });
-    }
-    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-      return res.status(400).json({ message: 'Unexpected file field' });
-    }
-    return res.status(400).json({ message: 'File upload error' });
-  }
-
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({ message: err.message });
-  }
-
-  res.status(500).json({ message: 'Internal server error' });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
-
-const PORT = process.env.PORT || 5001;
-
-// Start server
-const startServer = async () => {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        await testConnection();
-        console.log('✅ Database connected successfully');
-      } catch (dbError) {
-        console.error('❌ Database connection failed:', dbError.message);
-        console.log('⚠️  Starting server without database - some features will be limited');
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Invalid email address'),
+    body('password').notEmpty().withMessage('Password is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, message: errors.array()[0].msg });
       }
-    } else {
-      console.log('⚠️  Database connection skipped - running in development mode');
+
+      const { email, password } = req.body;
+      const { rows } = await pool.query('SELECT id, email, password, role FROM users WHERE email = $1', [email]);
+
+      if (rows.length === 0) {
+        return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      }
+
+      const user = rows[0];
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      }
+
+      if (user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Admins only' });
+      }
+
+      const token = jwt.sign({ adminId: user.id }, process.env.JWT_SECRET || 'default-secret-2024', { expiresIn: '24h' });
+
+      res.json({
+        success: true,
+        token,
+        admin: {
+          id: user.id,
+          email: user.email
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Server error' });
     }
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      if (process.env.NODE_ENV === 'production') {
-        console.log(`🌐 Production URL: https://estate-house-x63y.onrender.com`);
+  }
+);
+
+router.get('/me', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [req.admin.adminId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+
+    const admin = rows[0];
+    res.json({
+      success: true,
+      admin: {
+        id: admin.id,
+        email: admin.email
       }
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+});
 
-startServer();
+module.exports = router;
+
